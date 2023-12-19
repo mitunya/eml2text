@@ -3,6 +3,7 @@ import os
 import io
 import re
 import email
+import locale
 import argparse
 
 ##
@@ -72,10 +73,11 @@ def mailPayload(msg) : # -> [ (content_type, name, data), ... ]
 
     def part_content(contents) -> str:
         payload = contents.get_payload(decode=True)
-        if payload:
-            charset = contents.get_content_charset()
-            if charset:
-                payload = payload.decode(charset, "ignore")
+        charset = contents.get_content_charset()
+        if charset:
+            payload = payload.decode(charset, "ignore")
+        else:
+            payload = payload.decode()
         return payload
 
     payload = []
@@ -84,7 +86,7 @@ def mailPayload(msg) : # -> [ (content_type, name, data), ... ]
             if not part.is_multipart():
                 if is_attachment(part) :
                     name = mime_decode(part.get_filename())
-                    data = part.get_payload(decode=True)
+                    charset = part.get_content_charset()
                     if part.get_content_charset():
                         payload.append( (part.get_content_type(), name, part_content(part)) )
                     else:
@@ -124,16 +126,17 @@ def getargs():
 
 def main():
     def make_outstream():
+        oencode = locale.getpreferredencoding()
         if args.output in [ 'stdout', '-' ] :
-            return os.fdopen(os.dup(sys.stdout.fileno()), 'w')
+            return os.fdopen(os.dup(sys.stdout.fileno()), 'w', encoding=oencode, errors='replace')
         else:
-            return open(args.output, 'w')
+            return open(args.output, 'w', encoding=oencode, errors='replace')
 
     args = getargs()
     if len(args.files) == 0:
-        with os.fdopen(os.dup(sys.stdin.fileno()), 'rb') as ifp :
+        with os.fdopen(os.dup(sys.stdin.fileno()), 'rb') as ifp, make_outstream() as ofp:
             buf = ifp.read()
-            print_mail(buf, sys.stdout)
+            print_mail(buf, ofp)
     else:
         for file in args.files:
             try:
