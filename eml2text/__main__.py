@@ -90,7 +90,7 @@ def mailPayload(msg) : # -> [ (content_type, name, data), ... ]
                     if part.get_content_charset():
                         payload.append( (part.get_content_type(), name, part_content(part)) )
                     else:
-                        payload.append( (part.get_content_type(), name, data) )
+                        payload.append( (part.get_content_type(), name, part) )
                 else:
                     payload.append( (part.get_content_type(), None, part_content(part)) )
     else:
